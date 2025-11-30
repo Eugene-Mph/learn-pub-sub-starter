@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -30,22 +29,48 @@ func main() {
 		log.Fatalf("could not create channel: %v", err)
 	}
 
-	err = pubsub.PublishJson(
-		publishCh,
-		routing.ExchangePerilDirect,
-		routing.PauseKey,
+	gamelogic.PrintServerHelp()
+
+	for {
+		inputWords := gamelogic.GetInput()
+
+		switch inputWords[0] {
+		case "pause":
+			stateControl(
+				publishCh,
+				"paused",
+				true,
+			)
+
+		case "resume":
+			stateControl(
+				publishCh,
+				"resumed",
+				false,
+			)
+		case "quit":
+			fmt.Println("goodbye")
+			return
+		default:
+			fmt.Println("unknown command")
+		}
+	}
+
+}
+
+func stateControl(ch *amqp.Channel, message string, pause bool) {
+	err := pubsub.PublishJson(
+		ch,
+		string(routing.ExchangePerilDirect),
+		string(routing.PauseKey),
 		routing.PlayingState{
-			IsPaused: true,
+			IsPaused: pause,
 		},
 	)
 
 	if err != nil {
 		log.Printf("could not publish time: %v", err)
 	}
-	fmt.Println("Pause message sent!")
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	fmt.Println("'\nRabbitMQ connection closed.")
+	fmt.Printf("Publishing %s game state\n", message)
 }
