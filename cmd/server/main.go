@@ -31,6 +31,21 @@ func main() {
 
 	gamelogic.PrintServerHelp()
 
+	// queue := amqp.Queue{}
+
+	_, queue, err := pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug+".*",
+		pubsub.SimpleQueueDurable,
+	)
+
+	if err != nil {
+		log.Fatalf("could not subscribe to pause: %v", err)
+	}
+	fmt.Printf("Queue %v declared and bound\n", queue.Name)
+
 	for {
 		inputWords := gamelogic.GetInput()
 
@@ -38,6 +53,7 @@ func main() {
 		case "pause":
 			stateControl(
 				publishCh,
+				routing.ExchangePerilDirect,
 				"paused",
 				true,
 			)
@@ -45,6 +61,7 @@ func main() {
 		case "resume":
 			stateControl(
 				publishCh,
+				routing.ExchangePerilDirect,
 				"resumed",
 				false,
 			)
@@ -58,10 +75,10 @@ func main() {
 
 }
 
-func stateControl(ch *amqp.Channel, message string, pause bool) {
+func stateControl(ch *amqp.Channel, exchnage, message string, pause bool) {
 	err := pubsub.PublishJson(
 		ch,
-		string(routing.ExchangePerilDirect),
+		exchnage,
 		string(routing.PauseKey),
 		routing.PlayingState{
 			IsPaused: pause,
