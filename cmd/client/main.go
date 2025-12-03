@@ -22,13 +22,17 @@ func main() {
 
 	defer conn.Close()
 
+	puhlishCh, err := conn.Channel()
+
+	if err != nil {
+		log.Fatalf("could not create channel: %v", err)
+	}
+
 	userName, err := gamelogic.ClientWelcome()
 
 	if err != nil {
 		log.Fatalf("could not get username: %v", err)
 	}
-
-	// queueName := fmt.Sprintf("%s.%s", routing.PauseKey, userName)
 
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
@@ -39,7 +43,7 @@ func main() {
 	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilDirect,
-		fmt.Sprintf("%s.%s", routing.PauseKey, gameState.GetUsername()),
+		fmt.Sprintf("%s.%s", routing.PauseKey, userName),
 		routing.PauseKey,
 		pubsub.SimpleQueueTransient,
 		handlerPause(gameState),
@@ -47,6 +51,21 @@ func main() {
 
 	if err != nil {
 		log.Fatalf("could not subscibe to pause:%v", err)
+	}
+
+	moveQueueName := fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, userName)
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		string(routing.ExchangePerilTopic),
+		moveQueueName,
+		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
+		pubsub.SimpleQueueTransient,
+		handlerMove(gameState),
+	)
+
+	if err != nil {
+		log.Fatalf("could not subscribe to army_moves: %v", err)
 	}
 
 	for {
@@ -69,11 +88,22 @@ func main() {
 
 		case "move":
 
-			_, err = gameState.CommandMove(inputWords)
+			armyMove, err := gameState.CommandMove(inputWords)
 
 			if err != nil {
 				fmt.Println(err)
 				continue
+			}
+
+			err = pubsub.PublishJson(
+				puhlishCh,
+				routing.ExchangePerilTopic,
+				moveQueueName,
+				armyMove,
+			)
+
+			if err != nil {
+				log.Printf("error: %v", err)
 			}
 
 		case "status":
