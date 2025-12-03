@@ -28,22 +28,26 @@ func main() {
 		log.Fatalf("could not get username: %v", err)
 	}
 
-	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, userName)
-
-	_, queue, err := pubsub.DeclareAndBind(
-		conn,
-		routing.ExchangePerilDirect,
-		queueName,
-		routing.PauseKey,
-		pubsub.SimpleQueueTransient)
+	// queueName := fmt.Sprintf("%s.%s", routing.PauseKey, userName)
 
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
 
-	fmt.Printf("Queue %s declared and bound!", queue.Name)
-
 	gameState := gamelogic.NewGameState(userName)
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilDirect,
+		fmt.Sprintf("%s.%s", routing.PauseKey, gameState.GetUsername()),
+		routing.PauseKey,
+		pubsub.SimpleQueueTransient,
+		handlerPause(gameState),
+	)
+
+	if err != nil {
+		log.Fatalf("could not subscibe to pause:%v", err)
+	}
 
 	for {
 		inputWords := gamelogic.GetInput()
@@ -89,8 +93,4 @@ func main() {
 		}
 	}
 
-	// signalChan := make(chan os.Signal, 1)
-	// signal.Notify(signalChan, os.Interrupt)
-	// <-signalChan
-	// fmt.Println("'\nRabbitMQ connection closed.")
 }
