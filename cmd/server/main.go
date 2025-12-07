@@ -29,6 +29,19 @@ func main() {
 		log.Fatalf("could not create channel: %v", err)
 	}
 
+	err = pubsub.SubscribeGob(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		fmt.Sprintf("%s.*", routing.GameLogSlug),
+		pubsub.SimpleQueueDurable,
+		handlerGameLog(),
+	)
+
+	if err != nil {
+		log.Fatalf("could not start consuming  logs:%v", err)
+	}
+
 	gamelogic.PrintServerHelp()
 
 	// queue := amqp.Queue{}
