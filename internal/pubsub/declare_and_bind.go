@@ -2,7 +2,7 @@ package pubsub
 
 import (
 	"fmt"
-
+    "github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -27,7 +27,9 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, queu
 		queueType == SimpleQueueTransient, // autoDelete
 		queueType == SimpleQueueTransient, // exclusive
 		false,                             // no-wait
-		nil,                               // args
+		amqp.Table{
+			"x-dead-letter-exchange": routing.ExchangePerilDLX,
+		},                               
 	)
 
 	if err != nil {
