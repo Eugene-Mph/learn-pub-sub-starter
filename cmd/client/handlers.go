@@ -42,7 +42,7 @@ func handlerMove(gs *gamelogic.GameState, publishCh *amqp.Channel) func(gamelogi
 			if err != nil {
 				return pubsub.NackReque
 			}
-			return pubsub.NackReque
+			return pubsub.Ack
 
 		case gamelogic.MoveOutcomeSamePlayer:
 			return pubsub.NackDiscard
