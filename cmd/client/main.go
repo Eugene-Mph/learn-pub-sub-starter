@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -74,7 +75,7 @@ func main() {
 		"war",
 		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
 		pubsub.SimpleQueueDurable,
-		hanlerWar(gameState),
+		handlerWar(gameState, puhlishCh),
 	)
 
 	if err != nil {
@@ -136,4 +137,17 @@ func main() {
 		}
 	}
 
+}
+
+func publishGameLog(publishCh *amqp.Channel, username, msg string) error {
+	return pubsub.PublishGob(
+		publishCh,
+		routing.ExchangePerilTopic,
+		fmt.Sprintf("%s.%s", routing.GameLogSlug, username),
+		routing.GameLog{
+			Username:    username,
+			CurrentTime: time.Now(),
+			Message:     msg,
+		},
+	)
 }
