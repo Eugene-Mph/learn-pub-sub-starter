@@ -61,11 +61,24 @@ func main() {
 		moveQueueName,
 		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
 		pubsub.SimpleQueueTransient,
-		handlerMove(gameState),
+		handlerMove(gameState, puhlishCh),
 	)
 
 	if err != nil {
 		log.Fatalf("could not subscribe to army_moves: %v", err)
+	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		string(routing.ExchangePerilTopic),
+		"war",
+		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
+		pubsub.SimpleQueueDurable,
+		hanlerWar(gameState),
+	)
+
+	if err != nil {
+		log.Fatalf("could not subscribe to war declaration: %v", err)
 	}
 
 	for {
