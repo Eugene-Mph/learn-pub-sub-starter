@@ -17,74 +17,6 @@ const (
 	NackRequeue
 )
 
-func SubscribeJSON[T any](
-	conn *amqp.Connection,
-	excahge,
-	queueName,
-	key string,
-	queueType SimpleQueueType, // an enum to represent "durable" or "transient" queue's
-	handler func(T) AckType,
-) error {
-
-	ch, queue, err := DeclareAndBind(conn, excahge, queueName, key, queueType)
-
-	if err != nil {
-		return fmt.Errorf("could not declare and bind queue: %v", err)
-	}
-
-	messages, err := ch.Consume(
-		queue.Name,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-
-	if err != nil {
-		return fmt.Errorf("could not consume messages: %v", err)
-	}
-
-	go func() {
-
-		defer ch.Close()
-
-		for message := range messages {
-
-			var payload T
-			err := json.Unmarshal(message.Body, &payload)
-
-			if err != nil {
-				fmt.Printf("could not unmarshal message: %v", err)
-				continue
-			}
-
-			ackType := handler(payload)
-
-			switch ackType {
-
-			case Ack:
-				message.Ack(false)
-				// fmt.Println("Ack")
-
-			case NackDiscard:
-				message.Nack(false, false)
-				// fmt.Println("NackDiscard")
-
-			case NackRequeue:
-				message.Nack(false, true)
-				// fmt.Println("NackReque")
-
-			}
-
-		}
-
-	}()
-
-	return nil
-}
-
 func subscribe[T any](
 	conn *amqp.Connection,
 	exchange,
@@ -145,11 +77,11 @@ func subscribe[T any](
 	return nil
 }
 
-// func jsonDecoder[T any](data []byte) (T, error) {
-// 	var payload T
-// 	err := json.Unmarshal(data, &payload)
-// 	return payload, err
-// }
+func jsonDecoder[T any](data []byte) (T, error) {
+	var payload T
+	err := json.Unmarshal(data, &payload)
+	return payload, err
+}
 
 func gobDecoder[T any](data []byte) (T, error) {
 	buffer := bytes.NewBuffer(data)
@@ -176,5 +108,23 @@ func SubscribeGob[T any](
 		queueType,
 		handler,
 		gobDecoder[T],
+	)
+}
+
+func SubscribeJSON[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) AckType) error {
+	return subscribe(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+		handler,
+		jsonDecoder[T],
 	)
 }
