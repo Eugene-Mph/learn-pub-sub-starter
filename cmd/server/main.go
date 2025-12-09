@@ -62,6 +62,10 @@ func main() {
 	for {
 		inputWords := gamelogic.GetInput()
 
+		if len(inputWords) == 0 {
+			continue
+		}
+
 		switch inputWords[0] {
 		case "pause":
 			stateControl(
